@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>総力の均等振り分け（真ん中・右・左）</title>
+<style>
+:root {
+  --bg: #eef1f5;
+  --surface: #ffffff;
+  --field: #f6f8fb;
+  --ink: #1a2333;
+  --muted: #5d6a7d;
+  --line: #d6dce6;
+  --accent: #2b4fd8;
+  --accent-ink: #ffffff;
+  --accent-soft: #e4e9fb;
+  --bar-track: #e3e8f0;
+  --ok: #1d7a4b;
+  --warn: #a35509;
+  --danger: #b3261e;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161d;
+    --surface: #1b212b;
+    --field: #141920;
+    --ink: #e6ebf3;
+    --muted: #9aa6b8;
+    --line: #2c3542;
+    --accent: #7f9cff;
+    --accent-ink: #0f1626;
+    --accent-soft: #232c4a;
+    --bar-track: #2a3240;
+    --ok: #63c58f;
+    --warn: #e6a35c;
+    --danger: #ff8a80;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161d;
+  --surface: #1b212b;
+  --field: #141920;
+  --ink: #e6ebf3;
+  --muted: #9aa6b8;
+  --line: #2c3542;
+  --accent: #7f9cff;
+  --accent-ink: #0f1626;
+  --accent-soft: #232c4a;
+  --bar-track: #2a3240;
+  --ok: #63c58f;
+  --warn: #e6a35c;
+  --danger: #ff8a80;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "BIZ UDPGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", "Noto Sans JP", Meiryo, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+}
+.wrap { max-width: 1240px; margin: 0 auto; padding: 24px 16px 48px; }
+header.top { margin-bottom: 20px; }
+h1 { font-size: 22px; line-height: 1.3; margin: 0 0 4px; font-weight: 700; letter-spacing: .01em; }
+header.top p { margin: 0; color: var(--muted); font-size: 14px; }
+
+.layout { display: grid; gap: 20px; grid-template-columns: 1fr; align-items: start; }
+@media (min-width: 940px) {
+  .layout { grid-template-columns: 360px minmax(0, 1fr); }
+  .panel.input { position: sticky; top: calc(16px + env(safe-area-inset-top, 0px)); }
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+.panel h2 { font-size: 15px; margin: 0 0 10px; font-weight: 700; }
+
+label.lbl { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+textarea#members {
+  width: 100%;
+  min-height: 260px;
+  resize: vertical;
+  background: var(--field);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.55;
+  font-variant-numeric: tabular-nums;
+}
+textarea:focus-visible, button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.hint { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; }
+
+.opts { margin-top: 14px; display: grid; gap: 10px; }
+.opt-row { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; font-size: 14px; }
+.opt-row .cap { font-weight: 700; font-size: 13px; margin-right: 2px; }
+.opt-row label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+input[type="radio"], input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+
+.bias { border-top: 1px solid var(--line); padding-top: 12px; }
+.bias .cap { display: block; font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+.bias-ctl { display: flex; align-items: center; gap: 12px; }
+.bias-ctl input[type="range"] { flex: 1; min-width: 0; height: 24px; accent-color: var(--accent); }
+.bias-ctl output { min-width: 4.2em; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bias .hint { margin-top: 2px; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+button {
+  font: inherit;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 9px 14px;
+  cursor: pointer;
+  min-height: 40px;
+}
+button:hover { background: var(--field); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+button.primary:hover { filter: brightness(1.07); background: var(--accent); }
+button.quiet { border-color: transparent; color: var(--muted); background: transparent; }
+button.quiet:hover { color: var(--ink); background: var(--field); }
+
+.notice { margin-top: 12px; font-size: 13px; border-radius: 8px; padding: 8px 10px; background: var(--accent-soft); color: var(--ink); }
+.notice.err { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+.notice ul { margin: 4px 0 0; padding-left: 18px; }
+
+/* results */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0;
+  margin-bottom: 16px;
+  padding: 0;
+  overflow: hidden;
+}
+.summary > div { padding: 12px 16px; border-right: 1px solid var(--line); }
+.summary > div:last-child { border-right: 0; }
+.summary dt { font-size: 12.5px; color: var(--muted); margin: 0; }
+.summary dd { margin: 2px 0 0; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.summary dd small { font-size: 12.5px; font-weight: 400; color: var(--muted); margin-left: 4px; }
+@media (max-width: 600px) {
+  .summary > div { border-right: 0; border-bottom: 1px solid var(--line); }
+  .summary > div:last-child { border-bottom: 0; }
+}
+
+.grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.card header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.card h3 { margin: 0; font-size: 16px; font-weight: 700; }
+.card .count { font-size: 13px; }
+.card .sum { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.card .sum strong { font-size: 17px; }
+.card .dev { font-size: 12.5px; color: var(--muted); }
+.card .dev.ok { color: var(--ok); }
+.card .dev.warn { color: var(--warn); }
+.card .target { font-size: 12.5px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+.bar { position: relative; height: 8px; border-radius: 4px; background: var(--bar-track); margin: 8px 0 12px; }
+.bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--accent); }
+.bar b { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--ink); border-radius: 1px; }
+
+ul.members { list-style: none; margin: 0 0 12px; padding: 0; flex: 1; user-select: text; }
+ul.members li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-top: 1px solid var(--line); font-size: 14px; }
+ul.members li:first-child { border-top: 0; }
+ul.members .nm { overflow-wrap: anywhere; }
+ul.members .rk { display: inline-block; min-width: 1.9em; margin-right: 4px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+ul.members li.anchor .nm { font-weight: 700; }
+ul.members li.anchor .rk { color: var(--accent); font-weight: 700; }
+ul.members .pw { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 1px; }
+ul.members li.none { color: var(--muted); }
+.card button.copy { width: 100%; }
+
+.legend { color: var(--muted); font-size: 12.5px; margin: 10px 2px 0; display: flex; align-items: center; gap: 8px; }
+.legend b { display: inline-block; width: 2px; height: 12px; background: var(--ink); }
+
+.alltext { margin-top: 20px; }
+.alltext .head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.alltext h2 { margin: 0; }
+textarea#all {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  background: var(--field);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.empty { text-align: center; color: var(--muted); padding: 48px 16px; }
+.empty p { margin: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .bar i { transition: width .35s ease; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>総力の均等振り分け（真ん中・右・左）</h1>
+    <p>メンバー名と総力を貼り付けると、1位を真ん中、2位を左、3位を右に固定し、残りを厚みに合わせて振り分けます。</p>
+  </header>
+
+  <div class="layout">
+    <section class="panel input" aria-label="入力">
+      <label class="lbl" for="members">メンバー名と総力（1行に1人）</label>
+      <textarea id="members" spellcheck="false" placeholder="山田 123456789&#10;佐藤 98,765,432&#10;鈴木 85.5M&#10;田中 1.2億"></textarea>
+      <p class="hint">名前と総力は、スペース・タブ・カンマのどれで区切ってもOKです。Excel・Googleスプレッドシートは、名前と総力の列をコピーしてそのまま貼り付けられます（見出し行があっても、順位などの列が増えても読み取ります）。「M」「K」「万」「億」の単位にも対応しています。</p>
+
+      <div class="opts">
+        <div class="opt-row">
+          <label><input type="checkbox" id="anchor" checked> 1〜3位を先頭に置く（1位→真ん中、2位→左、3位→右）</label>
+        </div>
+        <div class="bias">
+          <label class="cap" for="bias">真ん中の厚み（真ん中 ： 左 ： 右）</label>
+          <div class="bias-ctl">
+            <input type="range" id="bias" min="1" max="2" step="0.1" value="1.3">
+            <output id="biasOut" for="bias">1.3 : 1 : 1</output>
+          </div>
+          <p class="hint" id="biasHint" aria-live="polite"></p>
+        </div>
+        <div class="opt-row" role="radiogroup" aria-label="コピーの区切り">
+          <span class="cap">コピーの区切り</span>
+          <label><input type="radio" name="sep" value="nl" checked> 改行</label>
+          <label><input type="radio" name="sep" value="comma"> 「、」</label>
+          <label><input type="radio" name="sep" value="space"> スペース</label>
+        </div>
+        <div class="opt-row">
+          <label><input type="checkbox" id="withPower"> コピーに総力も含める</label>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="primary" id="run">振り分ける</button>
+        <button type="button" id="again" disabled>別パターン</button>
+        <button type="button" class="quiet" id="sample">サンプル</button>
+        <button type="button" class="quiet" id="clear">クリア</button>
+      </div>
+      <div id="notice" aria-live="polite"></div>
+    </section>
+
+    <section aria-label="結果">
+      <div id="out">
+        <div class="panel empty"><p>左の欄にメンバー名と総力を入力して、「振り分ける」を押してください。</p></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var LOCS = ['真ん中', '右', '左'];
+  var G = LOCS.length;
+  var STORE_KEY = 'sorryoku3-input';
+  var ANCHOR_KEY = 'sorryoku3-anchor';
+  var BIAS_KEY = 'sorryoku3-bias';
+  var ANCHORS = 3;
+  // 真ん中=0, 右=1, 左=2。1位→真ん中、2位→左(2)、3位→右(1)。
+  var ANCHOR_LOC = [0, 2, 1];
+  // 「左」と「右」は厚みの重さが同じなので、別パターンではこの2つだけ入れ替える
+  var SAME_TIER = [1, 2];
+
+  var $ = function (s) { return document.querySelector(s); };
+  var elMembers = $('#members');
+  var elOut = $('#out');
+  var elNotice = $('#notice');
+  var btnAgain = $('#again');
+
+  var state = { groups: null, members: null, counts: null };
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  /* ---------- storage (per-viewer convenience only) ---------- */
+  function saveInput() {
+    try { localStorage.setItem(STORE_KEY, elMembers.value); } catch (e) {}
+  }
+  function loadInput() {
+    try { var v = localStorage.getItem(STORE_KEY); if (v) elMembers.value = v; } catch (e) {}
+  }
+
+  /* ---------- parsing ---------- */
+  var UNITS = { '億': 1e8, '万': 1e4, 'k': 1e3, 'm': 1e6, 'b': 1e9 };
+
+  function parsePower(s) {
+    s = s.replace(/,/g, '').trim();
+    var m = s.match(/^(\d+(?:\.\d+)?|\.\d+)\s*(億|万|[KkMmBb])?$/);
+    if (!m) return NaN;
+    var v = parseFloat(m[1]);
+    if (m[2]) v *= UNITS[m[2].toLowerCase()];
+    return Math.round(v);
+  }
+
+  var LINE_RE = /^(.+?)[\s,、]+([\d,.]+\s*(?:億|万|[KkMmBb])?)$/;
+
+  function parseLine(line) {
+    line = line.replace(/["“”]/g, '').trim();
+    if (!line) return null;
+
+    if (line.indexOf('\t') >= 0) {
+      var cells = line.split('\t').map(function (c) { return c.trim(); })
+        .filter(function (c) { return c !== ''; });
+      var ni = -1, k;
+      for (k = 0; k < cells.length; k++) {
+        if (!isFinite(parsePower(cells[k]))) { ni = k; break; }
+      }
+      if (ni >= 0) {
+        for (k = ni + 1; k < cells.length; k++) {
+          var v = parsePower(cells[k]);
+          if (isFinite(v)) return { name: cells[ni], power: v };
+        }
+      }
+    }
+
+    var m = line.match(LINE_RE);
+    if (!m) return null;
+    var p = parsePower(m[2]);
+    if (!isFinite(p) || p < 0) return null;
+    return { name: m[1].trim(), power: p };
+  }
+
+  function parseInput(text) {
+    var members = [], errors = [], seenFirst = false;
+    var lines = text.normalize('NFKC').split(/\r?\n/);
+    lines.forEach(function (raw, idx) {
+      if (!raw.trim()) return;
+      var isFirst = !seenFirst;
+      seenFirst = true;
+      var r = parseLine(raw);
+      if (!r) {
+        if (isFirst && !/\d/.test(raw)) return;
+        errors.push({ no: idx + 1, text: raw.trim() });
+        return;
+      }
+      members.push(r);
+    });
+    return { members: members, errors: errors };
+  }
+
+  /* ---------- solver ---------- */
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // 人数を 真ん中:左:右 = r:1:1 の比率に近い整数へ配分する（合計は必ず n）
+  function countsFor(n, r) {
+    var w = [r, 1, 1]; // 真ん中, 右, 左
+    var sumW = r + 2;
+    var raw = w.map(function (x) { return n > 0 ? x * n / sumW : 0; });
+    var fl = raw.map(Math.floor);
+    var left = n - fl.reduce(function (a, b) { return a + b; }, 0);
+    var idx = [0, 1, 2].sort(function (a, b) {
+      var ra = raw[a] - fl[a], rb = raw[b] - fl[b];
+      if (Math.abs(ra - rb) > 1e-9) return rb - ra;
+      return w[b] - w[a];
+    });
+    for (var k = 0; k < left; k++) fl[idx[k]]++;
+    return fl;
+  }
+
+  // 代表を各拠点に1人ずつ置くため、3か所すべての人数を1人以上にする
+  function ensureAnchorSlots(C) {
+    for (var i = 0; i < G; i++) {
+      if (C[i] >= 1) continue;
+      var from = -1;
+      for (var j = 0; j < G; j++) {
+        if (j === i) continue;
+        if (C[j] >= 1 && (from < 0 || C[j] > C[from])) from = j;
+      }
+      if (from < 0) break;
+      C[from]--; C[i]++;
+    }
+    return C;
+  }
+
+  function buildInitial(members, C, rng, noise) {
+    var groups = [];
+    for (var g = 0; g < G; g++) groups.push({ items: [], sum: 0 });
+
+    members.filter(function (m) { return m.anchor; }).forEach(function (m) {
+      var gi = ANCHOR_LOC[m.rank - 1];
+      groups[gi].items.push(m); groups[gi].sum += m.power;
+    });
+
+    var order = members.filter(function (m) { return !m.anchor; }).map(function (m) {
+      return { m: m, k: m.power * (1 + (rng() - 0.5) * noise) };
+    }).sort(function (a, b) { return b.k - a.k; }).map(function (x) { return x.m; });
+
+    order.forEach(function (m) {
+      var best = -1;
+      for (var g = 0; g < G; g++) {
+        if (groups[g].items.length >= C[g]) continue;
+        if (best < 0 || groups[g].sum < groups[best].sum) best = g;
+      }
+      groups[best].items.push(m);
+      groups[best].sum += m.power;
+    });
+    return groups;
+  }
+
+  // 人数と代表は変えずに、メンバーの入れ替えで総力の差を縮める
+  function improve(groups) {
+    var changed = true, guard = 0;
+    while (changed && guard++ < 500) {
+      changed = false;
+      for (var a = 0; a < G; a++) {
+        for (var b = a + 1; b < G; b++) {
+          var A = groups[a], B = groups[b];
+          var sa = A.sum, sb = B.sum, best = -1, bi = -1, bj = -1;
+          for (var i = 0; i < A.items.length; i++) {
+            if (A.items[i].anchor) continue;
+            var pi = A.items[i].power;
+            for (var j = 0; j < B.items.length; j++) {
+              if (B.items[j].anchor) continue;
+              var d = B.items[j].power - pi;
+              var v = 2 * d * (sa - sb + d);
+              if (v < best) { best = v; bi = i; bj = j; }
+            }
+          }
+          if (bi >= 0) {
+            var x = A.items[bi], y = B.items[bj];
+            A.items[bi] = y; B.items[bj] = x;
+            A.sum += y.power - x.power; B.sum += x.power - y.power;
+            changed = true;
+          }
+        }
+      }
+    }
+  }
+
+  function score(groups) {
+    var total = 0;
+    groups.forEach(function (g) { total += g.sum; });
+    var mean = total / G, s = 0;
+    groups.forEach(function (g) { s += (g.sum - mean) * (g.sum - mean); });
+    return s;
+  }
+
+  function signature(groups) {
+    return groups.map(function (g) {
+      return g.items.map(function (m) { return m.id; }).sort(function (a, b) { return a - b; }).join(',');
+    }).join('|');
+  }
+
+  function solve(members, C, seed) {
+    var rng = mulberry32(seed);
+    var n = members.length;
+    var attempts = Math.max(6, Math.min(150, Math.floor(3e6 / Math.max(1, n * n))));
+    var results = [], seen = {};
+    for (var t = 0; t < attempts; t++) {
+      var noise = t === 0 ? 0 : 0.3 + rng() * 1.5;
+      var g = buildInitial(members, C, rng, noise);
+      improve(g);
+      var sig = signature(g);
+      if (seen[sig]) continue;
+      seen[sig] = true;
+      results.push({ groups: g, score: score(g) });
+    }
+    results.sort(function (a, b) { return a.score - b.score; });
+    return { results: results, rng: rng };
+  }
+
+  // 「左」と「右」だけを入れ替える（真ん中は固定のまま）
+  function shuffleSameTier(groups, rng, anchored) {
+    if (anchored) return groups; // 代表固定時は、左右の代表が別人なので入れ替えない
+    var i = SAME_TIER[0], j = SAME_TIER[1];
+    if (rng() < 0.5) {
+      var t = groups[i]; groups[i] = groups[j]; groups[j] = t;
+    }
+    return groups;
+  }
+
+  /* ---------- 厚みスライダー ---------- */
+  function getBias() {
+    return parseFloat($('#bias').value) || 1;
+  }
+  function updateBiasLabels() {
+    var r = getBias();
+    $('#biasOut').textContent = r.toFixed(1) + ' : 1 : 1';
+    var n = parseInput(elMembers.value).members.length;
+    var hint = $('#biasHint');
+    if (r === 1) {
+      hint.textContent = '偏りなし（3か所をほぼ同じ人数にします）';
+    } else if (n === 0) {
+      hint.textContent = '人数を入力すると、各場所の人数の目安が表示されます。';
+    } else {
+      var c = ensureAnchorSlots(countsFor(n, r));
+      hint.textContent = '現在の' + n + '人の場合： 真ん中 ' + c[0] + '人 ／ 左 ' + c[2] + '人 ／ 右 ' + c[1] + '人';
+    }
+  }
+
+  /* ---------- run ---------- */
+  function run(variant) {
+    var parsed = parseInput(elMembers.value);
+    saveInput();
+    elNotice.replaceChildren();
+
+    if (parsed.errors.length) {
+      var box = document.createElement('div');
+      box.className = 'notice err';
+      box.appendChild(document.createTextNode('読み取れなかった行が ' + parsed.errors.length + ' 件あります（除外して計算しました）。「名前 総力」の形に直してください。'));
+      var ul = document.createElement('ul');
+      parsed.errors.slice(0, 5).forEach(function (e) {
+        var li = document.createElement('li');
+        li.textContent = e.no + '行目: ' + e.text;
+        ul.appendChild(li);
+      });
+      box.appendChild(ul);
+      elNotice.appendChild(box);
+    }
+
+    if (!parsed.members.length) {
+      state.groups = null; state.members = null;
+      btnAgain.disabled = true;
+      elOut.replaceChildren();
+      var emp = document.createElement('div');
+      emp.className = 'panel empty';
+      var p = document.createElement('p');
+      p.textContent = '有効なメンバーがいません。「名前 総力」の形式で1行に1人ずつ入力してください。';
+      emp.appendChild(p);
+      elOut.appendChild(emp);
+      return;
+    }
+
+    if (parsed.members.length < G) {
+      var nb = document.createElement('div');
+      nb.className = 'notice';
+      nb.textContent = '人数が ' + G + ' 人未満のため、メンバーがいない場所ができます。';
+      elNotice.appendChild(nb);
+    }
+
+    var n = parsed.members.length;
+    var anchored = $('#anchor').checked;
+    parsed.members.forEach(function (m, i) { m.id = i; });
+    var sorted = parsed.members.slice().sort(function (a, b) { return b.power - a.power || a.id - b.id; });
+    sorted.forEach(function (m, i) {
+      m.rank = i + 1;
+      m.anchor = anchored && i < ANCHORS;
+    });
+
+    var C = ensureAnchorSlots(countsFor(n, getBias()));
+    var seed = variant ? (Date.now() & 0x7fffffff) : 12345;
+    var solved = solve(parsed.members, C, seed);
+    var pick = solved.results[0];
+    if (variant) {
+      var top = solved.results.slice(0, Math.min(5, solved.results.length));
+      pick = top[Math.floor(solved.rng() * top.length)];
+    }
+    var groups = pick.groups.map(function (g) {
+      g.items.sort(function (a, b) { return b.power - a.power; });
+      return g;
+    });
+    if (variant) shuffleSameTier(groups, solved.rng, anchored);
+
+    state.groups = groups;
+    state.members = parsed.members;
+    state.counts = C;
+    btnAgain.disabled = false;
+    render();
+  }
+
+  /* ---------- copy text ---------- */
+  function opts() {
+    return {
+      sep: (document.querySelector('input[name="sep"]:checked') || {}).value || 'nl',
+      withPower: $('#withPower').checked
+    };
+  }
+  function names(g, o) {
+    var list = g.items.map(function (m) { return o.withPower ? m.name + '（' + fmt(m.power) + '）' : m.name; });
+    var glue = o.sep === 'nl' ? '\n' : (o.sep === 'comma' ? '、' : ' ');
+    return list.join(glue);
+  }
+  function allText() {
+    if (!state.groups) return '';
+    var o = opts();
+    return state.groups.map(function (g, i) {
+      return o.sep === 'nl'
+        ? '【' + LOCS[i] + '】\n' + names(g, o)
+        : LOCS[i] + '：' + names(g, o);
+    }).join(o.sep === 'nl' ? '\n\n' : '\n');
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return fallbackCopy(text); });
+    }
+    return Promise.resolve(fallbackCopy(text));
+  }
+  function fallbackCopy(text) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) { return false; }
+  }
+  function flash(btn, ok) {
+    var orig = btn.getAttribute('data-label') || btn.textContent;
+    btn.setAttribute('data-label', orig);
+    btn.textContent = ok ? 'コピーしました' : 'コピーできませんでした。下の欄から選択してください';
+    clearTimeout(btn._t);
+    btn._t = setTimeout(function () { btn.textContent = orig; }, 1800);
+  }
+
+  /* ---------- render ---------- */
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function render() {
+    elOut.replaceChildren();
+    if (!state.groups) return;
+
+    var groups = state.groups;
+    var total = 0, max = 0, min = Infinity;
+    groups.forEach(function (g) { total += g.sum; if (g.sum > max) max = g.sum; if (g.sum < min) min = g.sum; });
+    var avg = total / G;
+    var gap = max - min;
+    var gapPct = avg > 0 ? (gap / avg * 100) : 0;
+
+    var sum = el('dl', 'panel summary');
+    [
+      ['メンバー', state.members.length + '人', ''],
+      ['総力の合計', fmt(total), ''],
+      ['1か所の平均', fmt(avg), ''],
+      ['最大と最小の差', fmt(gap), '（' + gapPct.toFixed(2) + '%）']
+    ].forEach(function (r) {
+      var d = el('div');
+      d.appendChild(el('dt', null, r[0]));
+      var dd = el('dd', null, r[1]);
+      if (r[2]) dd.appendChild(el('small', null, r[2]));
+      d.appendChild(dd);
+      sum.appendChild(d);
+    });
+    elOut.appendChild(sum);
+
+    var grid = el('div', 'grid');
+    var scale = Math.max(max, 1);
+    groups.forEach(function (g, i) {
+      var card = el('article', 'card');
+      var head = el('header');
+      head.appendChild(el('h3', null, LOCS[i]));
+      head.appendChild(el('span', 'count', g.items.length + '人'));
+      card.appendChild(head);
+
+      var dev = avg > 0 ? (g.sum - avg) / avg * 100 : 0;
+      var s = el('div', 'sum');
+      s.appendChild(el('strong', null, fmt(g.sum)));
+      var devEl = el('span', 'dev ' + (Math.abs(dev) <= 1.5 ? 'ok' : 'warn'), '平均比 ' + (dev >= 0 ? '+' : '−') + Math.abs(dev).toFixed(2) + '%');
+      s.appendChild(devEl);
+      card.appendChild(s);
+
+      if (state.counts) card.appendChild(el('div', 'target', '人数の目安 ' + state.counts[i] + '人'));
+
+      var bar = el('div', 'bar');
+      var fill = el('i'); fill.style.width = (g.sum / scale * 100).toFixed(2) + '%';
+      var mark = el('b'); mark.style.left = (avg / scale * 100).toFixed(2) + '%';
+      bar.appendChild(fill); bar.appendChild(mark);
+      card.appendChild(bar);
+
+      var ul = el('ul', 'members');
+      if (!g.items.length) {
+        ul.appendChild(el('li', 'none', '（メンバーなし）'));
+      } else {
+        g.items.forEach(function (m) {
+          var li = el('li', m.anchor ? 'anchor' : '');
+          var nm = el('span', 'nm');
+          nm.appendChild(el('span', 'rk', String(m.rank)));
+          nm.appendChild(document.createTextNode(m.name));
+          li.appendChild(nm);
+          li.appendChild(el('span', 'pw', fmt(m.power)));
+          ul.appendChild(li);
+        });
+      }
+      card.appendChild(ul);
+
+      var btn = el('button', 'copy', '名前をコピー');
+      btn.type = 'button';
+      btn.addEventListener('click', function () {
+        var t = names(g, opts());
+        copyText(t).then(function (ok) { flash(btn, ok); });
+      });
+      card.appendChild(btn);
+      grid.appendChild(card);
+    });
+    elOut.appendChild(grid);
+
+    var legend = el('div', 'legend');
+    legend.appendChild(el('b'));
+    legend.appendChild(el('span', null, '黒い線は1か所あたりの平均です。青字・太字は代表（1〜3位）です。'));
+    elOut.appendChild(legend);
+
+    var box = el('div', 'panel alltext');
+    var h = el('div', 'head');
+    h.appendChild(el('h2', null, '全体をまとめてコピー'));
+    var allBtn = el('button', 'primary', '全部コピー');
+    allBtn.type = 'button';
+    h.appendChild(allBtn);
+    box.appendChild(h);
+    var ta = el('textarea');
+    ta.id = 'all';
+    ta.readOnly = true;
+    ta.setAttribute('aria-label', '振り分け結果のテキスト');
+    ta.value = allText();
+    box.appendChild(ta);
+    allBtn.addEventListener('click', function () {
+      copyText(ta.value).then(function (ok) { flash(allBtn, ok); });
+    });
+    elOut.appendChild(box);
+  }
+
+  function refreshAllText() {
+    var ta = document.getElementById('all');
+    if (ta) ta.value = allText();
+  }
+
+  /* ---------- samples ---------- */
+  function sample() {
+    var rng = mulberry32(2024);
+    var lines = [];
+    for (var i = 1; i <= 30; i++) {
+      var p = Math.round((32 + rng() * rng() * 90 + rng() * 25) * 1e6 / 1000) * 1000;
+      lines.push('メンバー' + (i < 10 ? '0' + i : i) + ' ' + p.toLocaleString('en-US'));
+    }
+    return lines.join('\n');
+  }
+
+  /* ---------- events ---------- */
+  $('#run').addEventListener('click', function () { run(false); });
+  btnAgain.addEventListener('click', function () { run(true); });
+  $('#sample').addEventListener('click', function () {
+    elMembers.value = sample();
+    saveInput();
+    updateBiasLabels();
+    run(false);
+  });
+  $('#clear').addEventListener('click', function () {
+    elMembers.value = '';
+    saveInput();
+    updateBiasLabels();
+    state.groups = null; state.members = null;
+    btnAgain.disabled = true;
+    elNotice.replaceChildren();
+    elOut.replaceChildren();
+    var emp = el('div', 'panel empty');
+    emp.appendChild(el('p', null, '左の欄にメンバー名と総力を入力して、「振り分ける」を押してください。'));
+    elOut.appendChild(emp);
+    elMembers.focus();
+  });
+  elMembers.addEventListener('input', function () { saveInput(); updateBiasLabels(); });
+  $('#withPower').addEventListener('change', refreshAllText);
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="sep"]'), function (r) {
+    r.addEventListener('change', refreshAllText);
+  });
+
+  try {
+    var sa = localStorage.getItem(ANCHOR_KEY);
+    if (sa !== null) $('#anchor').checked = sa === '1';
+    var sb = localStorage.getItem(BIAS_KEY);
+    if (sb !== null && sb !== '') $('#bias').value = sb;
+  } catch (e) {}
+  loadInput();
+  updateBiasLabels();
+  $('#anchor').addEventListener('change', function () {
+    try { localStorage.setItem(ANCHOR_KEY, $('#anchor').checked ? '1' : '0'); } catch (e) {}
+    if (state.groups) run(false);
+  });
+  $('#bias').addEventListener('input', updateBiasLabels);
+  $('#bias').addEventListener('change', function () {
+    try { localStorage.setItem(BIAS_KEY, $('#bias').value); } catch (e) {}
+    if (state.groups) run(false);
+  });
+})();
+</script>
+</body>
+</html>
